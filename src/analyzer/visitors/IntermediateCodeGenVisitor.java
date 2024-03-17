@@ -53,7 +53,7 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
         String label = newLabel();
         node.childrenAccept(this, data);
         m_writer.println(label);
-        
+
         return null;
     }
 
@@ -180,9 +180,20 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
         // À noter qu'il n'est pas nécessaire de boucler sur tous les enfants.
         // La grammaire n'accepte plus que 2 enfants maximum pour certaines opérations, au lieu de plusieurs
         // dans les TPs précédents. Vous pouvez vérifier au cas par cas dans le fichier Grammaire.jjt.
-        Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
-        // TODO
-        return childValue;
+
+        if (ops.size() == 1 && node.jjtGetNumChildren() > 1)
+        {
+            String newId = newID();
+            String firstValue = (String) node.jjtGetChild(0).jjtAccept(this, data);
+            String secondValue = (String) node.jjtGetChild(1).jjtAccept(this, data);
+            String operator = ops.get(0);
+
+            m_writer.println(newId + " = " + firstValue + " " + operator + " " + secondValue);
+            return newId;
+        } else
+        {
+            return node.jjtGetChild(0).jjtAccept(this, data);
+        }
     }
 
     @Override
@@ -200,9 +211,26 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     @Override
     public Object visit(ASTUnaExpr node, Object data)
     {
+
         Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
         // TODO
-        return childValue;
+
+        if (node.getOps().size() == 0)
+        {
+            return childValue;
+        }
+
+        String oldestId = childValue.toString();
+
+        for (int i = 0; i < node.getOps().size(); i++)
+        {
+            String latestId = newID();
+            m_writer.println(latestId + " = " + node.getOps().get(i) + " " + oldestId);
+            oldestId = latestId;
+        }
+
+
+        return oldestId;
     }
 
     @Override
