@@ -170,7 +170,22 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     @Override
     public Object visit(ASTWhileStmt node, Object data)
     {
-        node.childrenAccept(this, data);
+        String initLabel = newLabel();
+
+        String nextLabel = (data == null) ? "_L0" : (String) data;
+
+        BoolLabel loopBoolLabel = new BoolLabel(newLabel(), nextLabel);
+
+        m_writer.println(initLabel);
+
+        node.jjtGetChild(0).jjtAccept(this, loopBoolLabel);
+
+        m_writer.println(loopBoolLabel.lTrue);
+
+        node.jjtGetChild(1).jjtAccept(this, initLabel);
+
+        m_writer.println("goto " + initLabel);
+
         // TODO
         return null;
     }
@@ -178,8 +193,26 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     @Override
     public Object visit(ASTForStmt node, Object data)
     {
-        node.childrenAccept(this, data);
-        // TODO
+        String initLabel = newLabel();
+
+        String nextLabel = (data == null) ? "_L0" : (String) data;
+
+        BoolLabel loopBoolLabel = new BoolLabel(newLabel(), nextLabel);
+
+        node.jjtGetChild(0).jjtAccept(this, loopBoolLabel);
+        m_writer.println(initLabel);
+
+        BoolLabel blockBoolLabel = new BoolLabel(newLabel(), nextLabel);
+
+        node.jjtGetChild(1).jjtAccept(this, blockBoolLabel);
+        m_writer.println(blockBoolLabel.lTrue);
+
+        node.jjtGetChild(3).jjtAccept(this, loopBoolLabel);
+        m_writer.println(loopBoolLabel.lTrue);
+
+        node.jjtGetChild(2).jjtAccept(this, loopBoolLabel);
+        m_writer.println("goto " + initLabel);
+
         return null;
     }
 
