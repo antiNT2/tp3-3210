@@ -98,6 +98,17 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     {
         node.childrenAccept(this, data);
         // TODO
+
+        String enumName = ((ASTIdentifier) node.jjtGetChild(0)).getValue();
+        SymbolTable.put(enumName, VarType.EnumType);
+
+        int numberOfChildren = node.jjtGetNumChildren();
+
+        for (int i = 1; i < numberOfChildren; i++)
+        {
+            EnumValueTable.put(((ASTIdentifier) node.jjtGetChild(i)).getValue(), i - 1);
+        }
+
         return null;
     }
 
@@ -236,6 +247,12 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
             m_writer.println(boolLabel.lTrue + "\n" + identifier + " = 1");
             String id = data == null ? "_L0" : data.toString();
             m_writer.println("goto " + id + "\n" + boolLabel.lFalse + "\n" + identifier + " = 0");
+        }
+
+        if (varType == VarType.EnumVar)
+        {
+            String enumValue = (String) node.jjtGetChild(1).jjtAccept(this, data);
+            m_writer.println(identifier + " = " + EnumValueTable.get(enumValue));
         }
 
         return identifier;
