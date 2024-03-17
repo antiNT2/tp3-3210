@@ -16,7 +16,8 @@ import java.util.Vector;
  * @author Raphaël Tremblay
  * @version 2024.02.26
  */
-public class IntermediateCodeGenVisitor implements ParserVisitor {
+public class IntermediateCodeGenVisitor implements ParserVisitor
+{
     private final PrintWriter m_writer;
 
     public HashMap<String, VarType> SymbolTable = new HashMap<>();
@@ -25,36 +26,45 @@ public class IntermediateCodeGenVisitor implements ParserVisitor {
     private int id = 0;
     private int label = 0;
 
-    public IntermediateCodeGenVisitor(PrintWriter writer) {
+    public IntermediateCodeGenVisitor(PrintWriter writer)
+    {
         m_writer = writer;
     }
 
-    private String newID() {
+    private String newID()
+    {
         return "_t" + id++;
     }
 
-    private String newLabel() {
+    private String newLabel()
+    {
         return "_L" + label++;
     }
 
     @Override
-    public Object visit(SimpleNode node, Object data) {
+    public Object visit(SimpleNode node, Object data)
+    {
         return data;
     }
 
     @Override
-    public Object visit(ASTProgram node, Object data) {
+    public Object visit(ASTProgram node, Object data)
+    {
+        String label = newLabel();
         node.childrenAccept(this, data);
-        // TODO
+        m_writer.println(label);
+        
         return null;
     }
 
     @Override
-    public Object visit(ASTDeclaration node, Object data) {
+    public Object visit(ASTDeclaration node, Object data)
+    {
         String varName = ((ASTIdentifier) node.jjtGetChild(0)).getValue();
         VarType varType;
 
-        if (node.getValue() == null) {
+        if (node.getValue() == null)
+        {
             varName = ((ASTIdentifier) node.jjtGetChild(1)).getValue();
             varType = VarType.EnumVar;
         } else
@@ -65,152 +75,190 @@ public class IntermediateCodeGenVisitor implements ParserVisitor {
     }
 
     @Override
-    public Object visit(ASTBlock node, Object data) {
+    public Object visit(ASTBlock node, Object data)
+    {
+        int numberOfChildren = node.jjtGetNumChildren();
+
+        for (int i = 0; i < numberOfChildren; i++)
+        {
+            if (i == numberOfChildren - 1)
+            {
+                node.jjtGetChild(i).jjtAccept(this, data);
+                return null;
+            }
+            String label = newLabel();
+            node.jjtGetChild(i).jjtAccept(this, label);
+            m_writer.println(label);
+        }
+        // TODO
+        return null;
+    }
+
+    @Override
+    public Object visit(ASTEnumStmt node, Object data)
+    {
         node.childrenAccept(this, data);
         // TODO
         return null;
     }
 
     @Override
-    public Object visit(ASTEnumStmt node, Object data) {
+    public Object visit(ASTSwitchStmt node, Object data)
+    {
         node.childrenAccept(this, data);
         // TODO
         return null;
     }
 
     @Override
-    public Object visit(ASTSwitchStmt node, Object data) {
+    public Object visit(ASTCaseStmt node, Object data)
+    {
         node.childrenAccept(this, data);
         // TODO
         return null;
     }
 
     @Override
-    public Object visit(ASTCaseStmt node, Object data) {
+    public Object visit(ASTBreakStmt node, Object data)
+    {
         node.childrenAccept(this, data);
         // TODO
         return null;
     }
 
     @Override
-    public Object visit(ASTBreakStmt node, Object data) {
+    public Object visit(ASTStmt node, Object data)
+    {
+        node.childrenAccept(this, data);
+        return null;
+    }
+
+    @Override
+    public Object visit(ASTIfStmt node, Object data)
+    {
         node.childrenAccept(this, data);
         // TODO
         return null;
     }
 
     @Override
-    public Object visit(ASTStmt node, Object data) {
-        node.childrenAccept(this, data);
-        return null;
-    }
-
-    @Override
-    public Object visit(ASTIfStmt node, Object data) {
+    public Object visit(ASTWhileStmt node, Object data)
+    {
         node.childrenAccept(this, data);
         // TODO
         return null;
     }
 
     @Override
-    public Object visit(ASTWhileStmt node, Object data) {
+    public Object visit(ASTForStmt node, Object data)
+    {
         node.childrenAccept(this, data);
         // TODO
         return null;
     }
 
     @Override
-    public Object visit(ASTForStmt node, Object data) {
-        node.childrenAccept(this, data);
-        // TODO
-        return null;
-    }
-
-    @Override
-    public Object visit(ASTAssignStmt node, Object data) {
+    public Object visit(ASTAssignStmt node, Object data)
+    {
         String identifier = ((ASTIdentifier) node.jjtGetChild(0)).getValue();
-        node.jjtGetChild(1).jjtAccept(this, data);
         // TODO
-        return null;
+
+
+        m_writer.println(identifier + " = " + node.jjtGetChild(1).jjtAccept(this, data));
+
+        return identifier;
     }
 
     @Override
-    public Object visit(ASTExpr node, Object data) {
+    public Object visit(ASTExpr node, Object data)
+    {
         return node.jjtGetChild(0).jjtAccept(this, data);
     }
 
-    public Object codeExtAddMul(SimpleNode node, Object data, Vector<String> ops) {
+    public Object codeExtAddMul(SimpleNode node, Object data, Vector<String> ops)
+    {
         // À noter qu'il n'est pas nécessaire de boucler sur tous les enfants.
         // La grammaire n'accepte plus que 2 enfants maximum pour certaines opérations, au lieu de plusieurs
         // dans les TPs précédents. Vous pouvez vérifier au cas par cas dans le fichier Grammaire.jjt.
-        node.childrenAccept(this, data);
+        Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
         // TODO
-        return null;
+        return childValue;
     }
 
     @Override
-    public Object visit(ASTAddExpr node, Object data) {
+    public Object visit(ASTAddExpr node, Object data)
+    {
         return codeExtAddMul(node, data, node.getOps());
     }
 
     @Override
-    public Object visit(ASTMulExpr node, Object data) {
+    public Object visit(ASTMulExpr node, Object data)
+    {
         return codeExtAddMul(node, data, node.getOps());
     }
 
     @Override
-    public Object visit(ASTUnaExpr node, Object data) {
-        node.jjtGetChild(0).jjtAccept(this, data);
+    public Object visit(ASTUnaExpr node, Object data)
+    {
+        Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
+        // TODO
+        return childValue;
+    }
+
+    @Override
+    public Object visit(ASTBoolExpr node, Object data)
+    {
+        Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
+        // TODO
+        return childValue;
+    }
+
+    @Override
+    public Object visit(ASTCompExpr node, Object data)
+    {
+        Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
+        // TODO
+        return childValue;
+    }
+
+    @Override
+    public Object visit(ASTNotExpr node, Object data)
+    {
+        Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
+        // TODO
+        return childValue;
+    }
+
+    @Override
+    public Object visit(ASTGenValue node, Object data)
+    {
+        Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
+        // TODO
+        return childValue;
+    }
+
+    @Override
+    public Object visit(ASTBoolValue node, Object data)
+    {
         // TODO
         return null;
     }
 
     @Override
-    public Object visit(ASTBoolExpr node, Object data) {
-        node.childrenAccept(this, data);
-        // TODO
-        return null;
-    }
-
-    @Override
-    public Object visit(ASTCompExpr node, Object data) {
-        node.childrenAccept(this, data);
-        // TODO
-        return null;
-    }
-
-    @Override
-    public Object visit(ASTNotExpr node, Object data) {
-        node.jjtGetChild(0).jjtAccept(this, data);
-        // TODO
-        return null;
-    }
-
-    @Override
-    public Object visit(ASTGenValue node, Object data) {
-        node.jjtGetChild(0).jjtAccept(this, data);
-        // TODO
-        return null;
-    }
-
-    @Override
-    public Object visit(ASTBoolValue node, Object data) {
-        // TODO
-        return null;
-    }
-
-    @Override
-    public Object visit(ASTIdentifier node, Object data) {
+    public Object visit(ASTIdentifier node, Object data)
+    {
         // TODO
         return node.getValue();
     }
 
     @Override
-    public Object visit(ASTIntValue node, Object data) {
+    public Object visit(ASTIntValue node, Object data)
+    {
         return Integer.toString(node.getValue());
     }
 
-    public enum VarType {
+    public enum VarType
+    {
         Bool,
         Number,
         EnumType,
@@ -218,11 +266,13 @@ public class IntermediateCodeGenVisitor implements ParserVisitor {
         EnumValue
     }
 
-    private static class BoolLabel {
+    private static class BoolLabel
+    {
         public String lTrue;
         public String lFalse;
 
-        public BoolLabel(String lTrue, String lFalse) {
+        public BoolLabel(String lTrue, String lFalse)
+        {
             this.lTrue = lTrue;
             this.lFalse = lFalse;
         }
