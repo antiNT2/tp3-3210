@@ -195,7 +195,7 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     {
         String initLabel = newLabel();
 
-        String nextLabel = (data == null) ? "_L0" : (String) data;
+        String nextLabel = (data == null) ? "_L0" : ((BoolLabel) data).lTrue;
 
         BoolLabel loopBoolLabel = new BoolLabel(newLabel(), nextLabel);
 
