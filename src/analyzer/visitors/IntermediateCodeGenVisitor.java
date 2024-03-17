@@ -115,24 +115,62 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     @Override
     public Object visit(ASTSwitchStmt node, Object data)
     {
-        node.childrenAccept(this, data);
-        // TODO
+        String nextLabel = "";
+        String goToLabel = null;
+
+        String switchVar = (String) node.jjtGetChild(0).jjtAccept(this, data);
+        int numberOfChildren = node.jjtGetNumChildren();
+        int finalCaseIndex = numberOfChildren - 1;
+
+        for (int i = 1; i < numberOfChildren; i++)
+        {
+            Integer enumValue = EnumValueTable.get((String) node.jjtGetChild(i).jjtAccept(this, data));
+            nextLabel = i == finalCaseIndex ? "_L0" : newLabel();
+
+            m_writer.println("if " + switchVar + " != " + enumValue + " goto " + nextLabel);
+
+            if (goToLabel != null)
+            {
+                m_writer.println(goToLabel);
+                goToLabel = null;
+            }
+
+            node.jjtGetChild(i).jjtGetChild(1).jjtAccept(this, data);
+
+            int numberOfChildrenForTheCurrentNode = node.jjtGetChild(i).jjtGetNumChildren();
+
+            if (numberOfChildrenForTheCurrentNode == 3)
+            {
+                node.jjtGetChild(i).jjtGetChild(2).jjtAccept(this, data);
+            } else if (i != finalCaseIndex)
+            {
+                goToLabel = newLabel();
+                m_writer.println("goto " + goToLabel);
+            }
+
+            // We don't want the final case to print the next label because it's already handled
+            if (i != finalCaseIndex)
+            {
+                m_writer.println(nextLabel);
+            }
+        }
+
         return null;
     }
 
     @Override
     public Object visit(ASTCaseStmt node, Object data)
     {
-        node.childrenAccept(this, data);
         // TODO
-        return null;
+        Object identifier = node.jjtGetChild(0).jjtAccept(this, data);
+        return identifier;
     }
 
     @Override
     public Object visit(ASTBreakStmt node, Object data)
     {
         node.childrenAccept(this, data);
-        // TODO
+        m_writer.println("goto _L0");
         return null;
     }
 
