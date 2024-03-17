@@ -67,8 +67,7 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
         {
             varName = ((ASTIdentifier) node.jjtGetChild(1)).getValue();
             varType = VarType.EnumVar;
-        } else
-            varType = node.getValue().equals("num") ? VarType.Number : VarType.Bool;
+        } else varType = node.getValue().equals("num") ? VarType.Number : VarType.Bool;
 
         SymbolTable.put(varName, varType);
         return null;
@@ -161,10 +160,23 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     public Object visit(ASTAssignStmt node, Object data)
     {
         String identifier = ((ASTIdentifier) node.jjtGetChild(0)).getValue();
+        VarType varType = SymbolTable.get(identifier);
+
         // TODO
 
+        if (varType == VarType.Number)
+        {
+            m_writer.println(identifier + " = " + node.jjtGetChild(1).jjtAccept(this, data));
+        }
 
-        m_writer.println(identifier + " = " + node.jjtGetChild(1).jjtAccept(this, data));
+        if (varType == VarType.Bool)
+        {
+            BoolLabel boolLabel = new BoolLabel(newLabel(), newLabel());
+            node.jjtGetChild(1).jjtAccept(this, boolLabel);
+            m_writer.println(boolLabel.lTrue + "\n" + identifier + " = 1");
+            String id = data == null ? "_L0" : data.toString();
+            m_writer.println("goto " + id + "\n" + boolLabel.lFalse + "\n" + identifier + " = 0");
+        }
 
         return identifier;
     }
@@ -236,9 +248,30 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     @Override
     public Object visit(ASTBoolExpr node, Object data)
     {
-        Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
-        // TODO
-        return childValue;
+        int numberOfChildren = node.jjtGetNumChildren();
+
+        if (numberOfChildren <= 1)
+        {
+            Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
+            return childValue;
+        }
+        String newLabel = newLabel();
+        String operator = (String) node.getOps().get(0);
+        BoolLabel newBoolLabel;
+        BoolLabel currentBoolLabel = ((BoolLabel) data);
+        if (operator.equals("||"))
+        {
+            newBoolLabel = new BoolLabel(currentBoolLabel.lTrue, newLabel);
+        } else
+        {
+            newBoolLabel = new BoolLabel(newLabel, currentBoolLabel.lFalse);
+        }
+        node.jjtGetChild(0).jjtAccept(this, newBoolLabel);
+        m_writer.println(newLabel);
+        node.jjtGetChild(1).jjtAccept(this, data);
+
+
+        return null;
     }
 
     @Override
@@ -252,8 +285,24 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     @Override
     public Object visit(ASTNotExpr node, Object data)
     {
+
+        int numberOfOps = node.getOps().size();
+
+        if (numberOfOps % 2 != 0)
+        {
+            // We have an odd number of '!'
+
+            BoolLabel currentBoolLabel = ((BoolLabel) data);
+            BoolLabel newBoolLabel = new BoolLabel(currentBoolLabel.lFalse, currentBoolLabel.lTrue);
+
+            Object childValue = node.jjtGetChild(0).jjtAccept(this, newBoolLabel);
+            return childValue;
+
+        }
+
         Object childValue = node.jjtGetChild(0).jjtAccept(this, data);
-        // TODO
+
+
         return childValue;
     }
 
@@ -268,7 +317,14 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     @Override
     public Object visit(ASTBoolValue node, Object data)
     {
-        // TODO
+        Boolean boolValue = node.getValue();
+        BoolLabel boolLabel = ((BoolLabel) data);
+
+        String valueToGo = boolValue ? boolLabel.lTrue : boolLabel.lFalse;
+
+        m_writer.println("goto " + valueToGo);
+
+
         return null;
     }
 
@@ -276,6 +332,13 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
     public Object visit(ASTIdentifier node, Object data)
     {
         // TODO
+        String identifier = node.getValue();
+        if (SymbolTable.get(identifier) == VarType.Bool)
+        {
+            BoolLabel boolLabel = ((BoolLabel) data);
+            m_writer.println("if " + identifier + " == 1 goto " + boolLabel.lTrue);
+            m_writer.println("goto " + boolLabel.lFalse);
+        }
         return node.getValue();
     }
 
@@ -287,11 +350,7 @@ public class IntermediateCodeGenVisitor implements ParserVisitor
 
     public enum VarType
     {
-        Bool,
-        Number,
-        EnumType,
-        EnumVar,
-        EnumValue
+        Bool, Number, EnumType, EnumVar, EnumValue
     }
 
     private static class BoolLabel
